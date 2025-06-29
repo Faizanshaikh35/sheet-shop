@@ -1,0 +1,32 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "8ecb2c53b68f9fe892dad9b318143e23"
+name = "shop-sheet"
+handle = "shop-sheet"
+application_url = "https://miracle-change-bus-revenues.trycloudflare.com"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-04"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = ["https://miracle-change-bus-revenues.trycloudflare.com/auth/callback", "https://miracle-change-bus-revenues.trycloudflare.com/auth/shopify/callback", "https://miracle-change-bus-revenues.trycloudflare.com/api/auth/callback"]
+
+[pos]
+embedded = false
