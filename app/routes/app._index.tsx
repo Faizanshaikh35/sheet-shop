@@ -12,57 +12,123 @@ import {
   Divider,
   Button,
 } from "@shopify/polaris";
-import { useState } from "react";
+import { json } from "@remix-run/node";
+import { useFetcher, useLoaderData } from "@remix-run/react";
 import { ProductFilledIcon, RefreshIcon, CalendarIcon } from "@shopify/polaris-icons";
 
-export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [syncHistory, setSyncHistory] = useState([
-    {
-      id: "1",
-      date: "2023-05-15",
-      time: "14:30:45",
-      type: "Products to Sheet",
-      status: "Success",
-      items: 24,
-    },
-    {
-      id: "2",
-      date: "2023-05-14",
-      time: "09:15:22",
-      type: "Sheet to Products",
-      status: "Failed",
-      items: 0,
-      error: "Connection timeout",
-    },
-    {
-      id: "3",
-      date: "2023-05-12",
-      time: "16:45:10",
-      type: "Products to Sheet",
-      status: "Success",
-      items: 18,
-    },
-  ]);
+// Types
+type SyncHistoryItem = {
+  id: string;
+  date: string;
+  time: string;
+  type: string;
+  status: "Success" | "Failed";
+  items: number;
+  error?: string;
+};
 
-  const handleManualSync = () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setSyncHistory([
-        {
-          id: "4",
-          date: new Date().toISOString().split("T")[0],
-          time: new Date().toLocaleTimeString(),
-          type: "Manual Sync",
-          status: "Success",
-          items: 5,
-        },
-        ...syncHistory,
-      ]);
-      setIsLoading(false);
-    }, 1500);
+type DashboardStats = {
+  totalProducts: number;
+  lastSync: {
+    count: number;
+    timestamp: string;
   };
+  nextSync: string;
+};
+
+type LoaderData = {
+  stats: DashboardStats;
+  syncHistory: SyncHistoryItem[];
+};
+
+type ActionData = {
+  newSync?: SyncHistoryItem;
+  error?: string;
+};
+
+// Mock database
+let mockStats = {
+  totalProducts: 142,
+  lastSync: {
+    count: 24,
+    timestamp: "May 15, 2023 at 2:30 PM",
+  },
+  nextSync: "Scheduled in 2 hours",
+};
+
+let mockSyncHistory: SyncHistoryItem[] = [
+  {
+    id: "1",
+    date: "2023-05-15",
+    time: "14:30:45",
+    type: "Products to Sheet",
+    status: "Success",
+    items: 24,
+  },
+  {
+    id: "2",
+    date: "2023-05-14",
+    time: "09:15:22",
+    type: "Sheet to Products",
+    status: "Failed",
+    items: 0,
+    error: "Connection timeout",
+  },
+  {
+    id: "3",
+    date: "2023-05-12",
+    time: "16:45:10",
+    type: "Products to Sheet",
+    status: "Success",
+    items: 18,
+  },
+];
+
+// Loader function
+export async function loader() {
+  return json<LoaderData>({
+    stats: mockStats,
+    syncHistory: mockSyncHistory,
+  });
+}
+
+// Action function
+export async function action() {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  // Simulate 80% success rate
+  const success = Math.random() > 0.2;
+
+  if (success) {
+    const newSync: SyncHistoryItem = {
+      id: (mockSyncHistory.length + 1).toString(),
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toLocaleTimeString(),
+      type: "Manual Sync",
+      status: "Success",
+      items: Math.floor(Math.random() * 10) + 1,
+    };
+
+    mockSyncHistory = [newSync, ...mockSyncHistory];
+    mockStats.lastSync = {
+      count: newSync.items,
+      timestamp: new Date().toLocaleString(),
+    };
+
+    return json<ActionData>({ newSync });
+  } else {
+    return json<ActionData>(
+      { error: "Sync failed. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+export default function HomePage() {
+  const { stats, syncHistory } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof action>();
+  const isSyncing = fetcher.state === "submitting";
 
   return (
     <Page
@@ -70,8 +136,8 @@ export default function HomePage() {
       subtitle="Manage your product data synchronization"
       primaryAction={{
         content: "Sync Now",
-        loading: isLoading,
-        onAction: handleManualSync,
+        loading: isSyncing,
+        onAction: () => fetcher.submit({}, { method: "POST" }),
         icon: RefreshIcon,
       }}
     >
@@ -95,7 +161,7 @@ export default function HomePage() {
                     </Text>
                   </InlineStack>
                   <Text variant="headingXl" as="p" fontWeight="bold">
-                    142
+                    {stats.totalProducts}
                   </Text>
                   <Divider />
                   <InlineStack gap="100" blockAlign="center">
@@ -124,10 +190,10 @@ export default function HomePage() {
                   </InlineStack>
                   <BlockStack gap="100">
                     <Text variant="headingLg" as="p" fontWeight="bold">
-                      24 products
+                      {stats.lastSync.count} products
                     </Text>
                     <Text variant="bodySm" tone="subdued">
-                      May 15, 2023 at 2:30 PM
+                      {stats.lastSync.timestamp}
                     </Text>
                   </BlockStack>
                   <Divider />
@@ -155,7 +221,7 @@ export default function HomePage() {
                       Auto
                     </Text>
                     <Text variant="bodySm" tone="subdued">
-                      Scheduled in 2 hours
+                      {stats.nextSync}
                     </Text>
                   </BlockStack>
                   <Divider />
@@ -190,7 +256,7 @@ export default function HomePage() {
                     "numeric",
                   ]}
                   headings={["Date", "Time", "Type", "Status", "Items"]}
-                  rows={syncHistory.map((item) => [
+                  rows={(fetcher.data?.newSync ? [fetcher.data.newSync, ...syncHistory] : syncHistory).map((item) => [
                     <Text variant="bodyMd" key={`${item.id}-date`} fontWeight="medium">
                       {item.date}
                     </Text>,
