@@ -16,7 +16,7 @@ export function AlertModal({open, onClose, title, content, status}: AlertModalPr
       title={title}
       primaryAction={{
         content: "Close",
-        onClose,
+        onAction: onClose,
       }}
     >
       <Modal.Section>

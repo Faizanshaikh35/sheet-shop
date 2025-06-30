@@ -1,34 +1,24 @@
+// components/IntegrationCard.tsx
 import {
-  BlockStack,
+  Button,
   Card,
-  Text,
+  BlockStack,
   InlineStack,
   Box,
   Divider,
   Badge,
-  Button,
+  Text,
 } from "@shopify/polaris";
-import { ReactNode } from "react";
-
-interface IntegrationCardProps {
-  service: "google" | "microsoft" | "airtable";
-  connected: boolean;
-  title: string;
-  description: string;
-  icon?: ReactNode;
-  isActive?: boolean;
-  onConnect: (service: "google" | "microsoft" | "airtable") => void;
-}
 
 export function IntegrationCard({
                                   service,
                                   connected,
                                   title,
                                   description,
-                                  icon,
-                                  isActive = false,
-                                  onConnect,
-                                }: IntegrationCardProps) {
+                                  isActive,
+                                  actionType,
+                                  onConnect, // Add this prop
+                                }: any & { onConnect?: () => void }) {
   const status = connected ? "connected" : isActive ? "connecting" : "disconnected";
 
   return (
@@ -47,11 +37,9 @@ export function IntegrationCard({
                   : "bg-fill-caution"
               }
             >
-              {icon || (
-                <Text variant="bodyLg" fontWeight="bold">
-                  {service.charAt(0).toUpperCase()}
-                </Text>
-              )}
+              <Text variant="bodyLg" fontWeight="bold">
+                {service.charAt(0).toUpperCase()}
+              </Text>
             </Box>
             <BlockStack gap="100">
               <Text variant="headingSm" as="h3">
@@ -68,10 +56,10 @@ export function IntegrationCard({
             variant={connected ? "plain" : "primary"}
             tone={connected ? "success" : undefined}
             loading={isActive}
-            disabled={connected || isActive}
-            onClick={() => onConnect(service)}
+            disabled={isActive}
+            onClick={onConnect} // Use the onClick handler
           >
-            {connected ? "Connected" : isActive ? "Connecting..." : "Connect"}
+            {connected ? "Disconnect" : isActive ? "Connecting..." : "Connect"}
           </Button>
         </InlineStack>
 

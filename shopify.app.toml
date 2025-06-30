@@ -3,7 +3,7 @@
 client_id = "8ecb2c53b68f9fe892dad9b318143e23"
 name = "shop-sheet"
 handle = "shop-sheet"
-application_url = "https://intro-lat-snap-nylon.trycloudflare.com"
+application_url = "https://late-kick-fw-needs.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-04"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://intro-lat-snap-nylon.trycloudflare.com/auth/callback", "https://intro-lat-snap-nylon.trycloudflare.com/auth/shopify/callback", "https://intro-lat-snap-nylon.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://late-kick-fw-needs.trycloudflare.com/auth/callback", "https://late-kick-fw-needs.trycloudflare.com/auth/shopify/callback", "https://late-kick-fw-needs.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
