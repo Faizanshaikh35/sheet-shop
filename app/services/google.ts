@@ -70,11 +70,7 @@ export async function createNewSpreadsheet(googleConnector, title: string) {
 }
 
 export async function syncProductsToSpreadsheet(tokens: any, products: any[], existingSheetUrl?: string){
-  oauth2Client.setCredentials({
-    access_token: tokens.accessToken,
-    refresh_token: tokens.refreshToken,
-    expiry_date: tokens.expiryDate
-  });
+  oauth2Client.setCredentials(tokens);
 
   const sheets = google.sheets({ version: 'v4', auth: oauth2Client });
   let spreadsheetId: string;

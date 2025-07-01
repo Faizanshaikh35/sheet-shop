@@ -189,6 +189,13 @@ export default function SettingsPage() {
     );
   };
 
+  const handleConnect = () => {
+    fetcher.submit(
+      { action: "connect-google" },
+      { method: "POST" }
+    );
+  };
+
   return (
     <Page title="Google Integration">
       <Layout>
@@ -259,17 +266,13 @@ export default function SettingsPage() {
                 </Button>
               </BlockStack>
             ) : (
-              <fetcher.Form method="post">
                 <Button
-                  submit
-                  name="action"
-                  value="connect-google"
+                  onClick={handleConnect}
                   loading={isLoading}
                   tone="success"
                 >
                   Connect Google Account
                 </Button>
-              </fetcher.Form>
             )}
           </BlockStack>
         </Layout.Section>
