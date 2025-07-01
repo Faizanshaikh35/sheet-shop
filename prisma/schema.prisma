@@ -52,6 +52,7 @@ model Connector {
   refreshTokenExpiresIn Int?
   expiryDate            BigInt?
   sheetLinkUrl          String?
+  email                 String?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   deletedAt             DateTime?

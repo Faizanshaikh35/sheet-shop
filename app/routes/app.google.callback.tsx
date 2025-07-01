@@ -6,6 +6,7 @@ import { useLoaderData, useNavigate } from "@remix-run/react";
 import {useEffect} from "react";
 import db from "../db.server";
 import {CONNECTOR_TYPE} from "../constant/index";
+import {findShopByShopId, getAdminShopInfo, getConnectorByType} from "../services/query";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -25,30 +26,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { tokens } = await oauth2Client.getToken(code);
 
     // First, get the shop's ID using the shop query
-    const shopQueryResponse = await admin.graphql(
-      `#graphql
-      query GetShopId {
-        shop {
-          id,
-          name
-        }
-      }`
-    );
-
-    const shopData = await shopQueryResponse.json();
-    console.log("shopData", shopData)
+    const shopData = await getAdminShopInfo(admin);
     const shopId = shopData.data.shop.id;
     const shopName = shopData.data.shop.name;
 
-    // Check if shop exists in database, if not create it
-    let shop = await db.shop.findUnique({
-      where: {
-        shopId: shopId
-      }
-    });
+    let shop = await findShopByShopId(shopId);
 
     if (!shop) {
-      // Shop doesn't exist, create it
       shop = await db.shop.create({
         data: {
           name: shopName,
@@ -62,21 +46,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Now create/update the connector record
     const connectorData = {
-      type: CONNECTOR_TYPE.GOOGLE, // Using your enum value
+      type: CONNECTOR_TYPE.GOOGLE,
       accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token || null, // refresh_token might not always be present
+      refreshToken: tokens.refresh_token || null,
       tokenType: tokens.token_type,
-      refreshTokenExpiresIn: tokens.refresh_token_expires_in, // Using expires_in instead of refresh_token_expires_in
+      refreshTokenExpiresIn: tokens.refresh_token_expires_in,
       expiryDate: tokens.expiry_date,
-      shopId: shop.id // Reference to the shop
+      shopId: shop.id,
     };
 
-    const existingConnector = await db.connector.findFirst({
-      where: {
-        shopId: shop.id,
-        type: CONNECTOR_TYPE.GOOGLE
-      }
-    });
+    const existingConnector = await getConnectorByType(shop.id, CONNECTOR_TYPE.GOOGLE);
 
     if (existingConnector) {
       const updateConnector = await db.connector.update({
