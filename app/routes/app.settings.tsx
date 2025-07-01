@@ -1,160 +1,94 @@
-// routes/settings.tsx
 import {
   BlockStack,
   Layout,
   Page,
   Text,
+  Button,
 } from "@shopify/polaris";
-import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher, useNavigate} from "@remix-run/react";
-import { AlertModal } from "../components/AlertModal";
-import { IntegrationCard } from "../components/IntegrationCard";
+import { json, redirect } from "@remix-run/node";
+import {useLoaderData, useFetcher, useActionData} from "@remix-run/react";
 import { useState, useEffect } from "react";
-
-// Mock database (replace with real DB in production)
-const mockIntegrationsDB = {
-  google: { connected: false },
-  microsoft: { connected: false },
-  airtable: { connected: false },
-};
+import { authenticate } from "../shopify.server";
+import {generateAuthUrl} from "../services/google";
 
 // Types
-type IntegrationStatus = {
-  google: boolean;
-  microsoft: boolean;
-  airtable: boolean;
+type GoogleIntegration = {
+  connected: boolean;
+  email?: string;
 };
 
-type ActionResponse = {
-  status: "success" | "error";
-  message: string;
-  updatedIntegrations?: IntegrationStatus;
+type LoaderData = {
+  google: GoogleIntegration;
 };
 
-// Loader function
-export async function loader() {
-  return json({
-    integrations: mockIntegrationsDB,
+export async function loader({ request }: { request: Request }) {
+  const { session } = await authenticate.admin(request);
+  return json<LoaderData>({
+    google: {
+      connected: false,
+      email: "",
+    },
   });
 }
 
-// Action function
 export async function action({ request }: { request: Request }) {
-  const formData = await request.formData();
-  const service = formData.get("service") as "google" | "microsoft" | "airtable";
-  const action = formData.get("action") as "connect" | "disconnect";
-
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  const success = Math.random() > 0.2;
-
-  if (success) {
-    mockIntegrationsDB[service].connected = action === "connect";
-    return json({
-      status: "success",
-      message: `${service} ${action}ed successfully!`,
-      updatedIntegrations: mockIntegrationsDB,
-    });
-  } else {
-    return json<ActionResponse>({
-      status: "error",
-      message: `Failed to ${action} ${service}`,
-    });
-  }
+  const { session } = await authenticate.admin(request);
+  const authUrl = generateAuthUrl();
+  return json({ authUrl });
 }
 
 export default function SettingsPage() {
-  const { integrations } = useLoaderData<typeof loader>();
-  const [localIntegrations, setLocalIntegrations] = useState(integrations);
-  const [modal, setModal] = useState({
-    open: false,
-    type: "success" as "success" | "error",
-    message: "",
-  });
+  const { google } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const fetcher = useFetcher<ActionResponse>();
-  const navigate = useNavigate();
-
-  // Handle fetcher state changes
   useEffect(() => {
-    if (fetcher.data) {
-      setModal({
-        open: true,
-        type: fetcher.data.status,
-        message: fetcher.data.message,
-      });
-      if (fetcher.data.updatedIntegrations) {
-        setLocalIntegrations(fetcher.data.updatedIntegrations);
-      }
+    if (fetcher.data?.authUrl) {
+      window.open(fetcher.data.authUrl, '_blank');
     }
-  }, [fetcher.data]);
-
-  const handleConnect = (service: "google" | "microsoft" | "airtable") => {
-    const action = localIntegrations[service].connected ? "disconnect" : "connect";
-    fetcher.submit(
-      { service, action },
-      { method: "POST" }
-    );
-  };
+    setIsConnecting(fetcher.state === "submitting");
+  }, [fetcher.state, fetcher.data]);
 
   return (
-    <Page
-      title="Settings"
-      backAction={{ content: "Back", onAction: () => navigate(-1) }}
-    >
+    <Page title="Google Integration">
       <Layout>
         <Layout.Section>
           <BlockStack gap="400">
-            <BlockStack gap="200">
-              <Text variant="headingMd" as="h2">
-                Available Integrations
-              </Text>
-              <Text variant="bodyMd" tone="subdued">
-                Connect with these services to sync your product data
-              </Text>
-            </BlockStack>
+            <Text variant="headingMd" as="h2">
+              Google Integration
+            </Text>
 
-            <BlockStack gap="300">
-              <IntegrationCard
-                service="google"
-                connected={localIntegrations.google.connected}
-                title="Google Workspace"
-                description="Connect with Google Sheets and Drive"
-                isActive={fetcher.state === "submitting" && fetcher.formData?.get("service") === "google"}
-                actionType={localIntegrations.google.connected ? "disconnect" : "connect"}
-                onConnect={() => handleConnect("google")}
-              />
-
-              <IntegrationCard
-                service="microsoft"
-                connected={localIntegrations.microsoft.connected}
-                title="Microsoft 365"
-                description="Connect with Microsoft Excel and OneDrive"
-                isActive={fetcher.state === "submitting" && fetcher.formData?.get("service") === "microsoft"}
-                actionType={localIntegrations.microsoft.connected ? "disconnect" : "connect"}
-                onConnect={() => handleConnect("microsoft")}
-              />
-
-              <IntegrationCard
-                service="airtable"
-                connected={localIntegrations.airtable.connected}
-                title="Airtable"
-                description="Connect with your Airtable base"
-                isActive={fetcher.state === "submitting" && fetcher.formData?.get("service") === "airtable"}
-                actionType={localIntegrations.airtable.connected ? "disconnect" : "connect"}
-                onConnect={() => handleConnect("airtable")}
-              />
-            </BlockStack>
+            {google.connected ? (
+              <BlockStack gap="200">
+                <Text as="p">Connected as: {google.email}</Text>
+                <fetcher.Form method="post">
+                  <Button
+                    submit
+                    name="action"
+                    value="disconnect-google"
+                    loading={isConnecting}
+                    tone="critical"
+                  >
+                    Disconnect Google
+                  </Button>
+                </fetcher.Form>
+              </BlockStack>
+            ) : (
+              <fetcher.Form method="post">
+                <Button
+                  submit
+                  name="action"
+                  value="connect-google"
+                  loading={isConnecting}
+                  tone="success"
+                >
+                  Connect Google Account
+                </Button>
+              </fetcher.Form>
+            )}
           </BlockStack>
         </Layout.Section>
       </Layout>
-
-      <AlertModal
-        open={modal.open}
-        onClose={() => setModal({...modal, open: false})}
-        title={modal.type === "success" ? "Success" : "Error"}
-        content={modal.message}
-        status={modal.type}
-      />
     </Page>
   );
 }

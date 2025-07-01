@@ -30,3 +30,39 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+model Shop {
+  id        String      @id @default(uuid())
+  name      String
+  shopId    String      @unique
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedAt DateTime?
+  Connector Connector[]
+
+  @@map("shops")
+}
+
+model Connector {
+  id                    String        @id @default(uuid())
+  type                  ConnectorType
+  accessToken           String
+  refreshToken          String?
+  tokenType             String?
+  refreshTokenExpiresIn Int?
+  expiryDate            BigInt?
+  sheetLinkUrl          String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  deletedAt             DateTime?
+  shop                  Shop          @relation(fields: [shopId], references: [id])
+  shopId                String
+
+  @@map("connectors")
+}
+
+enum ConnectorType {
+  GOOGLE
+  MICROSOFT
+  AIRTABLE
+}
