@@ -4,6 +4,8 @@ import { oauth2Client } from "../services/google";
 import { authenticate } from "../shopify.server";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import {useEffect} from "react";
+import db from "../db.server";
+import {CONNECTOR_TYPE} from "../constant/index";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -27,19 +29,75 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       `#graphql
       query GetShopId {
         shop {
-          id
+          id,
+          name
         }
       }`
     );
 
-
     const shopData = await shopQueryResponse.json();
+    console.log("shopData", shopData)
     const shopId = shopData.data.shop.id;
+    const shopName = shopData.data.shop.name;
 
+    // Check if shop exists in database, if not create it
+    let shop = await db.shop.findUnique({
+      where: {
+        shopId: shopId
+      }
+    });
+
+    if (!shop) {
+      // Shop doesn't exist, create it
+      shop = await db.shop.create({
+        data: {
+          name: shopName,
+          shopId: shopId
+        }
+      });
+      console.log("New shop created:", shop);
+    } else {
+      console.log("Shop already exists:", shop);
+    }
+
+    // Now create/update the connector record
+    const connectorData = {
+      type: CONNECTOR_TYPE.GOOGLE, // Using your enum value
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token || null, // refresh_token might not always be present
+      tokenType: tokens.token_type,
+      refreshTokenExpiresIn: tokens.refresh_token_expires_in, // Using expires_in instead of refresh_token_expires_in
+      expiryDate: tokens.expiry_date,
+      shopId: shop.id // Reference to the shop
+    };
+
+    const existingConnector = await db.connector.findFirst({
+      where: {
+        shopId: shop.id,
+        type: CONNECTOR_TYPE.GOOGLE
+      }
+    });
+
+    if (existingConnector) {
+      const updateConnector = await db.connector.update({
+        where: {
+          id: existingConnector.id
+        },
+        data: connectorData
+      })
+      console.log("updateConnector", updateConnector)
+    } else {
+      const newConnector = await db.connector.create({
+        data: connectorData
+      })
+      console.log("newConnector", newConnector)
+    }
+
+    console.log("Connector processed:", existingConnector);
 
 
     // Return success flag to client
-    return json<{success: boolean, tokens: any}>({ success: true, tokens });
+    return json({ success: true });
   } catch (error) {
     console.error("Google OAuth error:", error);
     return redirect("/app/settings?error=auth_failed");

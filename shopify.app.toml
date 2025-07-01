@@ -3,7 +3,7 @@
 client_id = "8ecb2c53b68f9fe892dad9b318143e23"
 name = "shop-sheet"
 handle = "shop-sheet"
-application_url = "https://grill-urgent-comparable-miss.trycloudflare.com"
+application_url = "https://toner-slovenia-subsidiary-seriously.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-04"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://grill-urgent-comparable-miss.trycloudflare.com/auth/callback", "https://grill-urgent-comparable-miss.trycloudflare.com/auth/shopify/callback", "https://grill-urgent-comparable-miss.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://toner-slovenia-subsidiary-seriously.trycloudflare.com/auth/callback", "https://toner-slovenia-subsidiary-seriously.trycloudflare.com/auth/shopify/callback", "https://toner-slovenia-subsidiary-seriously.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
