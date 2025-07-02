@@ -1,16 +1,20 @@
 import {
-  BlockStack,
-  Layout,
+  Card,
   Page,
+  Layout,
   Text,
   Button,
   Banner,
+  Box,
+  BlockStack,
+  Divider,
+  Icon,
 } from "@shopify/polaris";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useFetcher, useNavigate } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { authenticate } from "../shopify.server";
-import {generateAuthUrl, createNewSpreadsheet, syncProductsToSpreadsheet} from "../services/google";
+import { generateAuthUrl, createNewSpreadsheet, syncProductsToSpreadsheet } from "../services/google";
 import {
   deleteConnectorByShopId,
   findShopByShopId,
@@ -19,7 +23,7 @@ import {
   updateConnector,
 } from "../services/query";
 import { CONNECTOR_TYPE } from "../constant/index";
-import {getAllShopifyProducts} from "../services/shopify";
+import { getAllShopifyProducts } from "../services/shopify";
 
 type GoogleIntegration = {
   connected: boolean;
@@ -53,8 +57,6 @@ export async function action({ request }: { request: Request }) {
   const formData = await request.formData();
   const action = formData.get("action");
 
-  console.log("action", action)
-
   const shopData = await getAdminShopInfo(admin);
   const shopId = shopData.data.shop.id;
   const shop = await findShopByShopId(shopId);
@@ -66,10 +68,7 @@ export async function action({ request }: { request: Request }) {
         throw new Error('Google account not connected');
       }
 
-      // 1. Get all products
       const products = await getAllShopifyProducts(admin);
-
-      // 2. Sync to spreadsheet
       const result = await syncProductsToSpreadsheet(
         {
           access_token: googleConnector.accessToken,
@@ -80,7 +79,6 @@ export async function action({ request }: { request: Request }) {
         googleConnector.sheetLinkUrl || undefined
       );
 
-      // 3. Update connector with sheet URL if new one was created
       if (!googleConnector.sheetLinkUrl) {
         await updateConnector(googleConnector.id, {
           sheetLinkUrl: result.url
@@ -197,84 +195,122 @@ export default function SettingsPage() {
   };
 
   return (
-    <Page title="Google Integration">
+    <Page
+      title="Google Integration"
+      primaryAction={
+        google.connected ? (
+          <Button
+            onClick={handleDisconnect}
+            loading={isLoading}
+            tone="critical"
+            icon={<Icon source="delete" />}
+          >
+            Disconnect
+          </Button>
+        ) : null
+      }
+    >
       <Layout>
         <Layout.Section>
-          <BlockStack gap="400">
-            <Text variant="headingMd" as="h2">
-              Google Integration
-            </Text>
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">
+                Google Sheets Integration
+              </Text>
 
-            {error && (
-              <Banner tone="critical">
-                <Text as="p">{error}</Text>
-              </Banner>
-            )}
+              {error && (
+                <Banner tone="critical">
+                  <Text as="p">{error}</Text>
+                </Banner>
+              )}
 
-            {syncResult?.productCount && (
-              <Banner tone="success">
-                <Text as="p">
-                  Synced {syncResult.productCount} products to{" "}
-                  <a href={syncResult.sheetUrl} target="_blank" rel="noopener noreferrer">
-                    spreadsheet
-                  </a>
-                </Text>
-              </Banner>
-            )}
+              {syncResult?.productCount && (
+                <Banner tone="success">
+                  <Text as="p">
+                    Successfully synced {syncResult.productCount} products to{" "}
+                    <a href={syncResult.sheetUrl} target="_blank" rel="noopener noreferrer">
+                      Google Sheet
+                    </a>
+                  </Text>
+                </Banner>
+              )}
 
-            {google.connected ? (
-              <BlockStack gap="400">
+              <Divider />
+
+              {!google.connected ? (
                 <BlockStack gap="200">
-                  {google.email && (
-                    <Text as="p">Connected as: {google.email}</Text>
-                  )}
-
-                  {google.sheetUrl ? (
-                    <>
-                      <Text as="p">
-                        Spreadsheet:{" "}
-                        <a href={google.sheetUrl} target="_blank" rel="noopener noreferrer">
-                          View Spreadsheet
-                        </a>
-                      </Text>
-
-                      {/* Manual Sync Button - Only shows when both Google and sheet are connected */}
-                      <Button
-                        onClick={handleSyncProducts}
-                        loading={isLoading}
-                        tone="success"
-                      >
-                        Sync Products Now
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={handleCreateSpreadsheet}
-                      loading={isLoading}
-                    >
-                      Create New Spreadsheet
-                    </Button>
-                  )}
+                  <Text as="p">Connect your Google account to sync Shopify products to Google Sheets</Text>
+                  <Button
+                    onClick={handleConnect}
+                    loading={isLoading}
+                    tone="success"
+                    primary
+                    icon={<Icon source="external" />}
+                  >
+                    Connect Google Account
+                  </Button>
                 </BlockStack>
+              ) : (
+                <BlockStack gap="400">
+                  <Box paddingBlockEnd="200">
+                    <BlockStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">
+                        Account Connected
+                      </Text>
+                      <Text as="p" tone="subdued">
+                        {google.email}
+                      </Text>
+                    </BlockStack>
+                  </Box>
 
-                <Button
-                  onClick={handleDisconnect}
-                  loading={isLoading}
-                  tone="critical"
-                >
-                  Disconnect Google
-                </Button>
-              </BlockStack>
-            ) : (
-                <Button
-                  onClick={handleConnect}
-                  loading={isLoading}
-                  tone="success"
-                >
-                  Connect Google Account
-                </Button>
-            )}
-          </BlockStack>
+                  <Divider />
+
+                    <BlockStack gap="400">
+                      <Text as="h3" variant="headingSm">
+                        Create New Spreadsheet
+                      </Text>
+                      <Text as="p" tone="subdued">
+                        Create a new Google Sheet to sync your Shopify products
+                      </Text>
+                      <Button
+                        onClick={handleCreateSpreadsheet}
+                        loading={isLoading}
+                        primary
+                        icon={<Icon source="plus" />}
+                      >
+                        Create Spreadsheet
+                      </Button>
+                    </BlockStack>
+                  <BlockStack gap="400">
+                    <Button
+                      onClick={handleSyncProducts}
+                      loading={isLoading}
+                      tone="success"
+                      primary
+                      icon={<Icon source="sync" />}
+                    >
+                      Sync Products Now
+                    </Button>
+                    {google?.sheetUrl &&
+                    <BlockStack align="space-between" blockAlign="center">
+                      <Text as="h3" variant="headingSm">
+                        Active Spreadsheet
+                      </Text>
+                      <Button
+                        url={google.sheetUrl}
+                        target="_blank"
+                        external
+                        icon={<Icon source="external" />}
+                      >
+                        View Spreadsheet
+                      </Button>
+                    </BlockStack>
+                    }
+                  </BlockStack>
+                </BlockStack>
+              )}
+            </BlockStack>
+          </Card>
         </Layout.Section>
       </Layout>
     </Page>
