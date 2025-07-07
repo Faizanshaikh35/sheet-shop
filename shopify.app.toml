@@ -3,7 +3,7 @@
 client_id = "8ecb2c53b68f9fe892dad9b318143e23"
 name = "shop-sheet"
 handle = "shop-sheet"
-application_url = "https://announcements-postposted-wp-still.trycloudflare.com"
+application_url = "https://refine-others-decided-belkin.trycloudflare.com"
 embedded = true
 
 [build]
@@ -30,7 +30,7 @@ api_version = "2025-04"
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://announcements-postposted-wp-still.trycloudflare.com/auth/callback", "https://announcements-postposted-wp-still.trycloudflare.com/auth/shopify/callback", "https://announcements-postposted-wp-still.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://refine-others-decided-belkin.trycloudflare.com/auth/callback", "https://refine-others-decided-belkin.trycloudflare.com/auth/shopify/callback", "https://refine-others-decided-belkin.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

@@ -7,5 +7,3 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   console.log(`Received ${topic} webhook for ${shop}`);
     return new Response();
 };
-
-\

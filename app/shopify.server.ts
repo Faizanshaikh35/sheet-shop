@@ -6,7 +6,6 @@ import {
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
-import {DeliveryMethod} from "@shopify/shopify-app-remix";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -24,12 +23,6 @@ const shopify = shopifyApp({
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
-  webhooks: {
-    PRODUCT_UPDATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: '/webhooks',
-    },
-  },
   hooks: {
     afterAuth: async ({session}) => {
       shopify.registerWebhooks({session});
