@@ -69,90 +69,192 @@ export async function createNewSpreadsheet(googleConnector, title: string) {
   }
 }
 
-export async function syncProductsToSpreadsheet(tokens: any, products: any[], existingSheetUrl?: string){
+export async function syncProductsToSpreadsheet(
+  tokens: any,
+  products: any[],
+  existingSheetUrl?: string
+) {
   oauth2Client.setCredentials(tokens);
-
   const sheets = google.sheets({ version: 'v4', auth: oauth2Client });
-  let spreadsheetId: string;
 
-  // Check if we need to create a new sheet
+  // 1. Get or create spreadsheet
+  let spreadsheetId: string;
   if (!existingSheetUrl) {
     const spreadsheet = await sheets.spreadsheets.create({
       requestBody: {
-        properties: {
-          title: 'Shopify Products'
-        }
+        properties: { title: 'Shopify Products' }
       }
     });
     spreadsheetId = spreadsheet.data.spreadsheetId!;
   } else {
-    // Extract ID from URL (format: https://docs.google.com/spreadsheets/d/{ID}/edit)
     spreadsheetId = existingSheetUrl.split('/')[5];
   }
-  // Prepare data for Google Sheets
-  const values = [
-    ['ID', 'Title', 'Description', 'Price'], // Headers
-    ...products.map(product => [
-      product.id,
-      product.title,
-      product.description,
-      product.price
-    ])
-  ];
 
-  // Clear existing data and write new data
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId,
-    range: 'A1:Z1000'
+  // 2. Get existing data from sheet
+  let existingData: any[][] = [];
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'A2:D', // Skip header row
+    });
+    existingData = response.data.values || [];
+  } catch (error) {
+    console.log('No existing data found, starting fresh');
+  }
+
+  // 3. Create maps for comparison
+  const sheetProductMap = new Map<string, any>();
+  existingData.forEach(row => {
+    if (row[0]) sheetProductMap.set(row[0], row);
   });
 
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: 'A1',
-    valueInputOption: 'RAW',
-    requestBody: {
-      values
+  const productMap = new Map<string, any>();
+  products.forEach(product => {
+    productMap.set(product.id, product);
+  });
+
+  // 4. Determine changes needed
+  const updates: any[] = [];
+  const newRows: any[][] = [];
+  const updatedIds = new Set<string>();
+
+  // Check for updates to existing products
+  sheetProductMap.forEach((sheetRow, productId) => {
+    const product = productMap.get(productId);
+    if (product) {
+      const sheetData = {
+        title: sheetRow[1] || '',
+        description: sheetRow[2] || '',
+        price: sheetRow[3] || ''
+      };
+
+      const productData = {
+        title: product.title || '',
+        description: product.description || '',
+        price: product.price || ''
+      };
+
+      if (JSON.stringify(sheetData) !== JSON.stringify(productData)) {
+        updates.push({
+          range: `A${existingData.findIndex(row => row[0] === productId) + 2}:D${existingData.findIndex(row => row[0] === productId) + 2}`,
+          values: [[
+            product.id,
+            product.title,
+            product.description,
+            product.price
+          ]]
+        });
+        updatedIds.add(productId);
+      }
     }
   });
 
-  // Format header row
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      requests: [
-        {
-          repeatCell: {
-            range: {
-              sheetId: 0,
-              startRowIndex: 0,
-              endRowIndex: 1
-            },
-            cell: {
-              userEnteredFormat: {
-                textFormat: { bold: true },
-                backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 }
-              }
-            },
-            fields: "userEnteredFormat(textFormat,backgroundColor)"
-          }
-        },
-        {
-          autoResizeDimensions: {
-            dimensions: {
-              sheetId: 0,
-              dimension: "COLUMNS",
-              startIndex: 0,
-              endIndex: 4
+  // Check for new products
+  productMap.forEach((product, productId) => {
+    if (!sheetProductMap.has(productId)) {
+      newRows.push([
+        product.id,
+        product.title,
+        product.description,
+        product.price
+      ]);
+    }
+  });
+
+  // 5. Execute updates in batch
+  const requests = [];
+
+  if (updates.length > 0) {
+    requests.push({
+      updateCells: {
+        rows: updates.map(update => ({
+          values: update.values[0].map(value => ({
+            userEnteredValue: { stringValue: String(value) }
+          }))
+        })),
+        fields: 'userEnteredValue',
+        range: {
+          sheetId: 0,
+          startRowIndex: updates[0].range.match(/A(\d+)/)[1] - 1,
+          endRowIndex: updates[0].range.match(/A(\d+)/)[1],
+          startColumnIndex: 0,
+          endColumnIndex: 4
+        }
+      }
+    });
+  }
+
+  if (newRows.length > 0) {
+    requests.push({
+      appendCells: {
+        sheetId: 0,
+        rows: newRows.map(row => ({
+          values: row.map(value => ({
+            userEnteredValue: { stringValue: String(value) }
+          }))
+        })),
+        fields: 'userEnteredValue'
+      }
+    });
+  }
+
+  // 6. Format headers if new sheet or first sync
+  if (existingData.length === 0) {
+    requests.push(
+      {
+        repeatCell: {
+          range: {
+            sheetId: 0,
+            startRowIndex: 0,
+            endRowIndex: 1
+          },
+          cell: {
+            userEnteredFormat: {
+              textFormat: { bold: true },
+              backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 }
             }
+          },
+          fields: "userEnteredFormat(textFormat,backgroundColor)"
+        }
+      },
+      {
+        autoResizeDimensions: {
+          dimensions: {
+            sheetId: 0,
+            dimension: "COLUMNS",
+            startIndex: 0,
+            endIndex: 4
           }
         }
-      ]
-    }
-  });
+      }
+    );
+
+    // Write headers
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'A1',
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [['ID', 'Title', 'Description', 'Price']]
+      }
+    });
+  }
+
+  // Execute all batch requests
+  if (requests.length > 0) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests }
+    });
+  }
 
   return {
     spreadsheetId,
-    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
+    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+    stats: {
+      updated: updates.length,
+      added: newRows.length,
+      unchanged: products.length - updates.length - newRows.length
+    }
   };
-
 }

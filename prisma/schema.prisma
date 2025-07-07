@@ -67,3 +67,35 @@ enum ConnectorType {
   MICROSOFT
   AIRTABLE
 }
+
+model SyncLog {
+  id          String    @id @default(cuid())
+  shop        String    // Shopify store domain
+  syncType    SyncType  // shopify_to_sheet or sheet_to_shopify
+  status      SyncStatus // "success", "failed", "partial"
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  duration    Int?
+  itemsSynced Int
+  totalItems  Int
+  sheetUrl    String?
+  connectorId String?
+
+  @@index([shop])
+  @@index([startedAt])
+}
+
+enum SyncType {
+  PRODUCTS
+  INVENTORY
+  PRICES
+  ALL
+}
+
+enum SyncStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCESS
+  FAILED
+  PARTIAL
+}

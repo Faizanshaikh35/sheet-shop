@@ -3,7 +3,7 @@
 client_id = "8ecb2c53b68f9fe892dad9b318143e23"
 name = "shop-sheet"
 handle = "shop-sheet"
-application_url = "https://whose-formal-occasionally-prince.trycloudflare.com"
+application_url = "https://announcements-postposted-wp-still.trycloudflare.com"
 embedded = true
 
 [build]
@@ -21,12 +21,16 @@ api_version = "2025-04"
   topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
 
+  [[webhooks.subscriptions]]
+  topics = [ "app/product_update" ]
+  uri = "/webhooks/app/product_update"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products"
 
 [auth]
-redirect_urls = ["https://whose-formal-occasionally-prince.trycloudflare.com/auth/callback", "https://whose-formal-occasionally-prince.trycloudflare.com/auth/shopify/callback", "https://whose-formal-occasionally-prince.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://announcements-postposted-wp-still.trycloudflare.com/auth/callback", "https://announcements-postposted-wp-still.trycloudflare.com/auth/shopify/callback", "https://announcements-postposted-wp-still.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
